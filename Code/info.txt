@@ -1,3 +1,3 @@
-main.h: main code for robot - to be used on demo day
-test_movement.h: basic code to test movement and turning of robot
-test_sensors.h: basic code to test sensors
+main.ino: main code for robot - to be used on demo day
+test_movement.ino: basic code to test movement and turning of robot
+test_sensors.ino: basic code to test sensors
