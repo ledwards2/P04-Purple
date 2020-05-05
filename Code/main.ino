@@ -2,7 +2,8 @@
 #include <Adafruit_MLX90393.h> // Melexis MLX90393 Library by Kevin Townsend, for Adafruit Industries. Available at: https://github.com/adafruit/Adafruit_MLX90393_Library
 
 #include <HCSR04.h> // HCSR04 Distance Sensor Library by Martin Sosic, Available at: https://github.com/Martinsos/arduino-lib-hc-sr04 
-
+#include <Servo.h> /*Servo library, copyright Michael Margolis (2009), licenced under GNU Lesser General Public Licence v2.1 
+                    Available At: https://github.com/arduino-libraries/Servo/blob/master/src/Servo.h */
 Adafruit_MLX90393 mag = Adafruit_MLX90393();
 // Created magnetometer object
 
@@ -12,33 +13,36 @@ int ECHO_LEFT = 5;
 int TRIG_RIGHT = 4;
 int ECHO_RIGHT = 6;
 
-
-
 UltraSonicDistanceSensor LeftDistance(TRIG_LEFT, ECHO_LEFT);
 UltraSonicDistanceSensor RightDistance(TRIG_RIGHT, ECHO_RIGHT);
 // Created sensor objects for left and right distance sensors
+Servo mark_servo; 
+// created object for marking servo
 
-
-
-// Motor Driver Setup
+// Motor Driver Setup : A Channel (LEFT)
 int DIRECTION_A = 12;
 int BRAKE_A = 9;
 int PWM_A = 3;
-
-
+// Motor Driver Setup : B Channel (RIGHT)
 int DIRECTION_B = 13;
 int BRAKE_B = 8;
 int PWM_B = 11;
 
+// DRIVE SPEED PWM in range (0, 255)
 int DRIVE_SPEED = 91;
 
 
+// marking system config:
+int MARKER_PWM = 10;
+
 //Threshold Values
 int DIST_THRESH = 5; //cm
+int abs_mag_thresh = 30000; // microTesla
 
-int abs_mag_thresh = 20; // UNITS????
+int MAX_TURN_TIME = 2000; // miliseconds
 
-int MAX_TURN_TIME = 2000;
+int MIN_MARK_ANGLE = 0; // angle [0, 180]
+int MAX_MARK_ANGLE = 180; // angle [0, 180] > MIN_MARK_ANGLE
 
 float ReadDist(UltraSonicDistanceSensor *sensor) {
   /* Function to return the distance measured by a HC-SR04 ultrasonic distance sensor
@@ -58,9 +62,53 @@ float MagAbsolute(Adafruit_MLX90393 sensor) {
   float x = ReadMag(sensor, 'x');
   float y = ReadMag(sensor, 'y');
   float z = ReadMag(sensor, 'z');
+  // apply pythagoras:
   float absolute = sqrt(sq(x) + sq(y) + sq(z));
   return absolute;
   
+}
+
+float ReadMag(Adafruit_MLX90393 sensor, char axis) {
+  /* Function to return magnetic field strength across an axis.
+   *  Using Adafruit MLX90393 Library by Kevin Townsend. 
+   *  Parameter: axis(char): the axis to return field strength across
+   *  Returns: float: the field strength (in microTesla) across the input axis
+   */
+  float x, y, z;
+  if(sensor.readData(&x, &y, &z)) {
+    if(axis == 'x') {
+      return x;
+    }
+    if(axis='y') {
+      return y;
+    }
+    if(axis='z') {
+      return z;
+    }
+  }
+  
+}
+
+void Stop() {
+  /* function to make robot stop */
+  analogWrite(PWM_A, 0);
+  analogWrite(PWM_B, 0);
+}
+
+void ActivateMarker() {
+  /* Function to activate robot marking system.
+   *  Uses Arduino Servo library to control one SG09 Servo Motor,
+   *  which moves smoothly from MIN_MARK_ANGLE to MAX_MARK_ANGLE
+   */
+   int angle = MIN_MARK_ANGLE;
+   for (angle = MIN_MARK_ANGLE; angle <= MAX_MARK_ANGLE; angle += 1) {
+    mark_servo.write(angle);
+    delay(5);
+   }
+   for (angle = MAX_MARK_ANGLE; angle >= MIN_MARK_ANGLE; angle -= 1) {
+    mark_servo.write(angle);
+    delay(5);
+   }
 }
 
 void TightLeft(int turn_time) {
@@ -92,6 +140,21 @@ void TightRight(int turn_time) {
   Stop();
   digitalWrite(DIRECTION_B, LOW);
 }
+void Reverse(int drive_time) {
+  /* Function to make robot drive backwards for int drive_time
+   *  Parameter: int drive_time: the time to drive backwards for, in miliseconds
+   *  Action: robot drives backwards for drive_time in miliseconds
+   */
+  Stop();
+  digitalWrite(DIRECTION_B, HIGH);
+  digitalWrite(DIRECTION_A, HIGH);
+  analogWrite(PWM_A, DRIVE_SPEED);
+  analogWrite(PWM_B, DRIVE_SPEED);
+  delay(drive_time);
+  Stop();
+  digitalWrite(DIRECTION_B, LOW);
+  digitalWrite(DIRECTION_A, LOW);
+}
 
 void setup() {
   // put your setup code here, to run once:
@@ -106,44 +169,23 @@ void setup() {
 
   digitalWrite(BRAKE_A, LOW);
   digitalWrite(BRAKE_B, LOW);
+  // begin connection with magnetometer
   mag.begin();
+  // bein connection with servo pin and Servo library
+  mark_servo.attach(MARKER_PWM);
 }
 
-float ReadMag(Adafruit_MLX90393 sensor, char axis) {
-  float x, y, z;
-  if(sensor.readData(&x, &y, &z)) {
-    if(axis == 'x') {
-      return x;
-    }
-    if(axis='y') {
-      return y;
-    }
-    if(axis='z') {
-      return z;
-    }
-  }
-  
-}
-
-void Stop() {
-  analogWrite(PWM_A, 0);
-  analogWrite(PWM_B, 0);
-}
-
-void ActivateMarker() {
-  /* THIS HAS NOT BEEN IMPLEMENTED YET
-   *  Function to activate marking system. Specs TBC
-   */
-}
 
 
 void loop() {
   // put your main code here, to run repeatedly:
   if(LeftDistance.measureDistanceCm() > DIST_THRESH and RightDistance.measureDistanceCm() > DIST_THRESH and MagAbsolute(mag) < abs_mag_thresh) {
+    // if FRONT CLEAR AND NO MINES
     analogWrite(PWM_A, DRIVE_SPEED);
     analogWrite(PWM_B, DRIVE_SPEED);
   }
   if(LeftDistance.measureDistanceCm() <= DIST_THRESH and RightDistance.measureDistanceCm() <= DIST_THRESH) {
+    // IF FRONT BLOCKED
     Stop();
     // TURN ON SPOT
     int turn_direction = random(0, 2); // generate random turn direction.
@@ -157,18 +199,31 @@ void loop() {
     }
   }
   else if(LeftDistance.measureDistanceCm() <= DIST_THRESH) {
+    // IF LEFT BLOCKED
     Stop();
     // TURN RIGHT
     int turn_time = random(100, MAX_TURN_TIME);
     TightRight(turn_time);
   }
   else if(RightDistance.measureDistanceCm() <= DIST_THRESH) {
+    // IF RIGHT BLOCKED
     Stop();
     // TURN LEFT:
     int turn_time = random(100, MAX_TURN_TIME);
     TightLeft(turn_time);
   }
   if(MagAbsolute(mag) >= abs_mag_thresh) {
+    // IF MINE PRESENT
     ActivateMarker();
+    Reverse(500); // reverse backwards from mine
+    int turn_direction = random(0, 2);
+    int turn_time = random(100, MAX_TURN_TIME);
+    // turn random direction for random time
+    if (turn_direction < 1) {//turn left
+      TightLeft(turn_time);
+    }
+    if (turn_direction >= 1) { // turn right
+      TightRight(turn_time);
+    }
   }
 }
