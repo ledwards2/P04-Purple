@@ -103,11 +103,17 @@ void ActivateMarker() {
    */
    int angle = MIN_MARK_ANGLE;
    for (angle = MIN_MARK_ANGLE; angle <= MAX_MARK_ANGLE; angle += 1) {
+    digitalWrite(LED_BUILTIN, HIGH);
     mark_servo.write(angle);
+    delay(5);
+    digitalWrite(LED_BUILTIN, LOW);
     delay(5);
    }
    for (angle = MAX_MARK_ANGLE; angle >= MIN_MARK_ANGLE; angle -= 1) {
     mark_servo.write(angle);
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(5);
+    digitalWrite(LED_BUILTIN, LOW);
     delay(5);
    }
 }
@@ -174,6 +180,8 @@ void setup() {
   mag.begin();
   // bein connection with servo pin and Servo library
   mark_servo.attach(MARKER_PWM);
+  // initialize led pin for secondary marking system
+  pinMode(LED_BUILTIN, OUTPUT);
 }
 
 
