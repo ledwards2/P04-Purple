@@ -87,6 +87,7 @@ float ReadMag(Adafruit_MLX90393 sensor, char axis) {
     }
   }
   
+  
 }
 
 void Stop() {
@@ -179,12 +180,19 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  if(LeftDistance.measureDistanceCm() > DIST_THRESH and RightDistance.measureDistanceCm() > DIST_THRESH and MagAbsolute(mag) < abs_mag_thresh) {
+  // poll all sensors first:
+  int left_distance = LeftDistance.measureDistanceCm();
+  int right_distance = RightDistance.measureDistanceCm();
+  float mag_strength = MagAbsolute(mag);
+  // now check conditions
+  if(left_distance > DIST_THRESH and right_distance > DIST_THRESH and mag_strength < abs_mag_thresh) {
     // if FRONT CLEAR AND NO MINES
+    delay(100); // delay to keep polling rate of sensors to less than 10Hz while no mines and no obstacles
     analogWrite(PWM_A, DRIVE_SPEED);
     analogWrite(PWM_B, DRIVE_SPEED);
   }
-  if(LeftDistance.measureDistanceCm() <= DIST_THRESH and RightDistance.measureDistanceCm() <= DIST_THRESH) {
+
+  if(left_distance <= DIST_THRESH and right_distance <= DIST_THRESH) {
     // IF FRONT BLOCKED
     Stop();
     // TURN ON SPOT
@@ -198,21 +206,21 @@ void loop() {
       TightRight(turn_time);
     }
   }
-  else if(LeftDistance.measureDistanceCm() <= DIST_THRESH) {
+  else if(left_distance <= DIST_THRESH) {
     // IF LEFT BLOCKED
     Stop();
     // TURN RIGHT
     int turn_time = random(100, MAX_TURN_TIME);
     TightRight(turn_time);
   }
-  else if(RightDistance.measureDistanceCm() <= DIST_THRESH) {
+  else if(right_distance <= DIST_THRESH) {
     // IF RIGHT BLOCKED
     Stop();
     // TURN LEFT:
     int turn_time = random(100, MAX_TURN_TIME);
     TightLeft(turn_time);
   }
-  if(MagAbsolute(mag) >= abs_mag_thresh) {
+  if(mag_strength >= abs_mag_thresh) {
     // IF MINE PRESENT
     ActivateMarker();
     Reverse(500); // reverse backwards from mine
