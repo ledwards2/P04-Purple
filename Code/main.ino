@@ -1,9 +1,10 @@
-#include <Wire.h>
+#include <Wire.h> // arduino I2C library
 #include <Adafruit_MLX90393.h> // Melexis MLX90393 Library by Kevin Townsend, for Adafruit Industries. Available at: https://github.com/adafruit/Adafruit_MLX90393_Library
 
 #include <HCSR04.h> // HCSR04 Distance Sensor Library by Martin Sosic, Available at: https://github.com/Martinsos/arduino-lib-hc-sr04 
 #include <Servo.h> /*Servo library, copyright Michael Margolis (2009), licenced under GNU Lesser General Public Licence v2.1 
                     Available At: https://github.com/arduino-libraries/Servo/blob/master/src/Servo.h */
+                    
 Adafruit_MLX90393 mag = Adafruit_MLX90393();
 // Created magnetometer object
 
@@ -59,13 +60,10 @@ float MagAbsolute(Adafruit_MLX90393 sensor) {
    *  Returns:
    *  float: the absolute value of magnetic strength, in the same unit as the sensor
    */
-  float x = ReadMag(sensor, 'x');
-  float y = ReadMag(sensor, 'y');
-  float z = ReadMag(sensor, 'z');
-  // apply pythagoras:
-  float absolute = sqrt(sq(x) + sq(y) + sq(z));
-  return absolute;
-  
+  float x, y, z;
+  if (sensor.readData(&x, &y, &z)) {
+    return sqrt(sq(x) + sq(y) + sq(z));
+  }
 }
 
 float ReadMag(Adafruit_MLX90393 sensor, char axis) {
@@ -176,6 +174,8 @@ void setup() {
 
   digitalWrite(BRAKE_A, LOW);
   digitalWrite(BRAKE_B, LOW);
+  digitalWrite(DIRECTION_A, LOW);
+  digitalWrite(DIRECTION_B, LOW);
   // begin connection with magnetometer
   mag.begin();
   // bein connection with servo pin and Servo library
@@ -230,6 +230,7 @@ void loop() {
   }
   if(mag_strength >= abs_mag_thresh) {
     // IF MINE PRESENT
+    Stop();
     ActivateMarker();
     Reverse(500); // reverse backwards from mine
     int turn_direction = random(0, 2);
