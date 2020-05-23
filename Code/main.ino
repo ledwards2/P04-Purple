@@ -2,7 +2,7 @@
 #include <Adafruit_MLX90393.h> // Melexis MLX90393 Library by Kevin Townsend, for Adafruit Industries. Available at: https://github.com/adafruit/Adafruit_MLX90393_Library
 
 #include <HCSR04.h> // HCSR04 Distance Sensor Library by Martin Sosic, Available at: https://github.com/Martinsos/arduino-lib-hc-sr04 
-#include <Servo.h> /*Servo library, copyright Michael Margolis (2009), licenced under GNU Lesser General Public Licence v2.1 
+#include <Servo.h> /* Servo library, copyright Michael Margolis (2009), licenced under GNU Lesser General Public Licence (GPL) v2.1 
                     Available At: https://github.com/arduino-libraries/Servo/blob/master/src/Servo.h */
                     
 Adafruit_MLX90393 mag = Adafruit_MLX90393();
@@ -45,6 +45,14 @@ int MAX_TURN_TIME = 2000; // miliseconds
 int MIN_MARK_ANGLE = 0; // angle [0, 180]
 int MAX_MARK_ANGLE = 180; // angle [0, 180] > MIN_MARK_ANGLE
 
+// PID parameters:
+float GAIN_P = 1;
+float GAIN_I = 1;
+
+float error;
+float error_i;
+
+
 float ReadDist(UltraSonicDistanceSensor *sensor) {
   /* Function to return the distance measured by a HC-SR04 ultrasonic distance sensor
    *  Returns: 
@@ -84,9 +92,30 @@ float ReadMag(Adafruit_MLX90393 sensor, char axis) {
       return z;
     }
   }
-  
-  
 }
+
+float VerticalAngle(Adafruit_MLX90393 sensor) {
+  float x, y, z;
+  if(sensor.readData(&x, &y, &z)) {
+    return atan(x/z);
+  }
+}
+
+float HorizontalAngle(Adafruit_MLX90393 sensor) {
+  float x, y, z;
+  if(sensor.readData(&x, &y, &z)) {
+    return atan(z/y);
+  }
+}
+
+float EvaluatePid(int start_time, float error) {
+
+  // calculate elapsed time by subtracting current time by start time
+  int elapsed_time = millis() - start_time;
+  error_i += elapsed_time * error;
+  return error * GAIN_P + error_i * GAIN_I;
+}
+
 
 void Stop() {
   /* function to make robot stop */
@@ -114,6 +143,24 @@ void ActivateMarker() {
     digitalWrite(LED_BUILTIN, LOW);
     delay(5);
    }
+}
+
+void TurnLeft(int turn_time) {
+  /* function to have robot perform gentle left turn for turn_time miliseconds
+   *  Parameters: turn_time(int): the number of miliseconds to turn for
+   *  Action: gentle left turn
+   */
+   analogWrite(PWM_A, 0);
+   analogWrite(PWM_B, DRIVE_SPEED);
+   delay(turn_time);
+   Stop();
+}
+
+void TurnRight(int turn_time) {
+  analogWrite(PWM_A, DRIVE_SPEED);
+  analogWrite(PWM_B, DRIVE_SPEED);
+  delay(turn_time);
+  Stop();
 }
 
 void TightLeft(int turn_time) {
@@ -228,6 +275,8 @@ void loop() {
     int turn_time = random(100, MAX_TURN_TIME);
     TightLeft(turn_time);
   }
+  /*
+  // MODIFICATIONS BEGIN HERE
   if(mag_strength >= abs_mag_thresh) {
     // IF MINE PRESENT
     Stop();
@@ -242,5 +291,65 @@ void loop() {
     if (turn_direction >= 1) { // turn right
       TightRight(turn_time);
     }
+    
+    
   }
+  */
+  
+  if (mag_strength >= abs_mag_thresh) {
+    Stop();
+    float vertical_angle = VerticalAngle(mag);
+    if (vertical_angle > -100 and vertical_angle < -80) {
+      ActivateMarker();
+      Reverse(500);
+      int turn_direction = random(0, 2);
+      int turn_time = random(100, MAX_TURN_TIME);
+      // turn random direction for random time
+      if (turn_direction < 1) {//turn left
+        TightLeft(turn_time);
+      }
+      if (turn_direction >= 1) { // turn right
+        TightRight(turn_time);
+      }
+    }
+    float horizontal_angle = HorizontalAngle(mag);
+    if (horizontal_angle < 30 and horizontal_angle > -30) {
+      // start setup for PID control
+      int start_time = millis();
+      float error_i = 0;
+      while(not (vertical_angle > -100 and vertical_angle < -80)) {
+        // THIS IS WHERE A PID CONTROLLER WOULD BE IMPLEMENTED
+        float correction_time = EvaluatePid(start_time, horizontal_angle);
+        if(correction_time > 0) {
+          TurnLeft(correction_time);
+        }
+        if(correction_time < 0) {
+          TurnRight(correction_time);
+        }
+        analogWrite(PWM_A, DRIVE_SPEED);
+        analogWrite(PWM_B, DRIVE_SPEED);
+        delay(100);
+        horizontal_angle = HorizontalAngle(mag);
+        
+      }
+      ActivateMarker();
+      Reverse(500);
+      int turn_direction = random(0, 2);
+      int turn_time = random(100, MAX_TURN_TIME);
+      // turn random direction for random time
+      if (turn_direction < 1) {//turn left
+        TightLeft(turn_time);
+      }
+      if (turn_direction >= 1) { // turn right
+        TightRight(turn_time);
+      }
+    }
+    else {
+      analogWrite(PWM_A, DRIVE_SPEED);
+      analogWrite(PWM_B, DRIVE_SPEED);
+    }
+
+    
+  }
+  
 }
