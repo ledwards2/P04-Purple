@@ -2,7 +2,7 @@
 #include <Adafruit_MLX90393.h> // Melexis MLX90393 Library by Kevin Townsend, for Adafruit Industries. Available at: https://github.com/adafruit/Adafruit_MLX90393_Library
 
 #include <HCSR04.h> // HCSR04 Distance Sensor Library by Martin Sosic, Available at: https://github.com/Martinsos/arduino-lib-hc-sr04 
-#include <Servo.h> /*Servo library, copyright Michael Margolis (2009), licenced under GNU Lesser General Public Licence v2.1 
+#include <Servo.h> /* Servo library, copyright Michael Margolis (2009), licenced under GNU Lesser General Public Licence (GPL) v2.1 
                     Available At: https://github.com/arduino-libraries/Servo/blob/master/src/Servo.h */
                     
 Adafruit_MLX90393 mag = Adafruit_MLX90393();
@@ -84,10 +84,21 @@ float ReadMag(Adafruit_MLX90393 sensor, char axis) {
       return z;
     }
   }
-  
-  
 }
 
+float VerticalAngle(Adafruit_MLX90393 sensor) {
+  float x, y, z;
+  if(sensor.readData(&x, &y, &z)) {
+    return atan(x/z);
+  }
+}
+
+float HorizontalAngle(Adafruit_MLX90393 sensor) {
+  float x, y, z;
+  if(sensor.readData(&x, &y, &z)) {
+    return atan(z/y);
+  }
+}
 void Stop() {
   /* function to make robot stop */
   analogWrite(PWM_A, 0);
@@ -228,6 +239,8 @@ void loop() {
     int turn_time = random(100, MAX_TURN_TIME);
     TightLeft(turn_time);
   }
+  /*
+  // MODIFICATIONS BEGIN HERE
   if(mag_strength >= abs_mag_thresh) {
     // IF MINE PRESENT
     Stop();
@@ -242,5 +255,50 @@ void loop() {
     if (turn_direction >= 1) { // turn right
       TightRight(turn_time);
     }
+    
+    
   }
+  */
+  
+  if (mag_strength >= abs_mag_thresh) {
+    Stop();
+    float vertical_angle = VerticalAngle(mag);
+    if (vertical_angle > -100 and vertical_angle < -80) {
+      ActivateMarker();
+      Reverse(500);
+      int turn_direction = random(0, 2);
+      int turn_time = random(100, MAX_TURN_TIME);
+      // turn random direction for random time
+      if (turn_direction < 1) {//turn left
+        TightLeft(turn_time);
+      }
+      if (turn_direction >= 1) { // turn right
+        TightRight(turn_time);
+      }
+    }
+    float horizontal_angle = HorizontalAngle(mag);
+    if (horizontal_angle < 30 and horizontal_angle > -30) {
+      while(not (vertical_angle > -100 and vertical_angle < -80)) {
+        // THIS IS WHERE A PID CONTROLLER WOULD BE IMPLEMENTED
+      }
+      ActivateMarker();
+      Reverse(500);
+      int turn_direction = random(0, 2);
+      int turn_time = random(100, MAX_TURN_TIME);
+      // turn random direction for random time
+      if (turn_direction < 1) {//turn left
+        TightLeft(turn_time);
+      }
+      if (turn_direction >= 1) { // turn right
+        TightRight(turn_time);
+      }
+    }
+    else {
+      analogWrite(PWM_A, DRIVE_SPEED);
+      analogWrite(PWM_B, DRIVE_SPEED);
+      
+
+    
+  }
+  
 }
