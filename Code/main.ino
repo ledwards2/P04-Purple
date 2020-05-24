@@ -38,7 +38,7 @@ int MARKER_PWM = 10;
 
 //Threshold Values
 int DIST_THRESH = 5; //cm
-int abs_mag_thresh = 30000; // microTesla
+int abs_mag_thresh = 3000; // microTesla
 
 int MAX_TURN_TIME = 2000; // miliseconds
 
@@ -46,8 +46,8 @@ int MIN_MARK_ANGLE = 0; // angle [0, 180]
 int MAX_MARK_ANGLE = 180; // angle [0, 180] > MIN_MARK_ANGLE
 
 // PID parameters:
-float GAIN_P = 1;
-float GAIN_I = 1;
+float GAIN_P = 0.007;
+float GAIN_I = 0.003;
 
 float error;
 float error_i;
@@ -318,17 +318,22 @@ void loop() {
       int start_time = millis();
       float error_i = 0;
       while(not (vertical_angle > -100 and vertical_angle < -80)) {
-        // THIS IS WHERE A PID CONTROLLER WOULD BE IMPLEMENTED
-        float correction_time = EvaluatePid(start_time, horizontal_angle);
-        if(correction_time > 0) {
-          TurnLeft(correction_time);
+        // IMPLEMENTATION OF PID CONTROL
+        if(horizontal_angle > -2 and horizontal_angle < 2) {
+          analogWrite(PWM_A, DRIVE_SPEED);
+          analogWrite(PWM_B, DRIVE_SPEED);
+          delay(100);
         }
-        if(correction_time < 0) {
-          TurnRight(correction_time);
+        else {
+          float correction_time = EvaluatePid(start_time, horizontal_angle);
+          if(correction_time > 0) {
+            TurnLeft(correction_time);
+          }
+          if(correction_time < 0) {
+            TurnRight(correction_time);
+          }
+          
         }
-        analogWrite(PWM_A, DRIVE_SPEED);
-        analogWrite(PWM_B, DRIVE_SPEED);
-        delay(100);
         horizontal_angle = HorizontalAngle(mag);
         
       }
