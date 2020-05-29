@@ -1,0 +1,9 @@
+Team Video Structure: 
+Robot overall layout & design features: Marco (2 mins)
+Dimensional and mass requirements: Luke (1 min)
+Landmine marking system: Joseph (1.5 minutes)
+    - Recorded demo: marking system paintbrush capacity
+Mechanical Design: Abhishekh & Luke (2 minutes)
+Electrical design: Lachlan / Marco(?) (1.5 minutes)
+Software design: Lachlan (1.5 mins)
+Robot search method and navigation: Lachlan (0.5 minute)
